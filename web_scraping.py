@@ -38,7 +38,7 @@ def start_driver(search_term):
 
     return driver
 
-def expand_elements(diver):
+def expand_content(diver):
 
     PAUSE_TIME = 5
 
@@ -100,27 +100,31 @@ def scrape():
     print('no. of posts collected: ' + str(len(content)))
     print('extract info for saving to database...')
     simplified_url = [u[0:u.find('?')] for u in url]
-    pid = [u.split('/')[-1] for u in simplified_url]
     uid = [u.split('/')[-2] for u in simplified_url]
-    date = [d[0:d.find(' ')] for d in date]
-
-    data = {'content': content, 'url': simplified_url, 'pid': pid, 'uid': uid, 'date': date}
+    pid = [u.split('/')[-1] for u in simplified_url]
+    published_date = [d[0:d.find(' ')] for d in date]
 
     driver.quit()
 
-    return data
+    return content, simplified_url, uid, pid, published_date
 
 
-def save_to_db(data):
+def save_to_db(content, url, uid, pid, published_date):
     conn = pymysql.connect(host='127.0.0.1', unix_socket='/tmp/mysql.sock', user='root', passwd=None, db='mysql', charset='utf8')
     cur = conn.cursor()
     cur.execute("USE scraping")
+
+    for i in range(len(content)):
+        cur.execute('''INSERT INTO cultural_revolution (content, url, uid, pid, pubdate)
+                        VALUES (%s, %s, %s, %s, %s)''', \
+                        (content[i], url[i], uid[i], pid[i], published_date[i]))
+
     cur.connection.commit()
     cur.close()
     conn.close()
 
 if __name__ == '__main__':
     driver = start_driver(sys.argv[1])
-    expand_elements(driver)
-    data = scrape()
-    save_to_db(data)
+    expand_content(driver)
+    content, url, uid, pid, published_date = scrape()
+    save_to_db(content, url, uid, pid, published_date)
