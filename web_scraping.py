@@ -1,6 +1,7 @@
  # encoding: utf-8
 from selenium import webdriver
 import time
+import re
 import sys
 import local_path
 import pymysql
@@ -78,31 +79,39 @@ def scrape():
     url_and_date = []
 
     for ele in full_content_div:
-        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and not ele.find_elements_by_css_selector(REBLOG_SELECTOR) and not ele.find_elements_by_css_selector(LINK_SELECTOR):
+        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and  \
+        not ele.find_elements_by_css_selector(REBLOG_SELECTOR) and \
+        not ele.find_elements_by_css_selector(LINK_SELECTOR):
+
             if ele.find_element_by_css_selector(CONTENT_SELECTOR).text == '':
                 content.append(ele.find_element_by_css_selector(EXPANDED_CONTENT_SELECTOR).text)
             else:
                 content.append(ele.find_element_by_css_selector(CONTENT_SELECTOR).text)
+
             url_and_date.append(ele.find_element_by_css_selector(URL_AND_DATE_SELECTOR))
 
     url = [ele.get_attribute("href") for ele in url_and_date]
     date = [ele.get_attribute("title") for ele in url_and_date]
 
+
     if len(url) != len(date) or len(url) != len(content):
-        print('url:' + str(len(url)))
-        print('date:' + str(len(date)))
-        print('content:' + str(len(content)))
         sys.exit('scrapped content not aligning')
-    else:
-        print('scrapped content align.')
-        print('no. of posts collected: ' + str(len(content)))
-        print('proceed to datbase')
+
+    print('no. of posts collected: ' + str(len(content)))
+    print('extract info for saving to database...')
+    simplified_url = [u[0:u.find('?')] for u in url]
+    pid = [u.split('/')[-1] for u in simplified_url]
+    uid = [u.split('/')[-2] for u in simplified_url]
+    date = [d[0:d.find(' ')] for d in date]
+
+    data = {'content': content, 'url': simplified_url, 'pid': pid, 'uid': uid, 'date': date}
 
     driver.quit()
 
-    return content, url, date
+    return data
 
-def save_to_db():
+
+def save_to_db(data):
     conn = pymysql.connect(host='127.0.0.1', unix_socket='/tmp/mysql.sock', user='root', passwd=None, db='mysql', charset='utf8')
     cur = conn.cursor()
     cur.execute("USE scraping")
@@ -113,6 +122,5 @@ def save_to_db():
 if __name__ == '__main__':
     driver = start_driver(sys.argv[1])
     expand_elements(driver)
-    content, url, date = scrape()
-    # save_to_db(content, url, date)
-    # save_to_db()
+    data = scrape()
+    save_to_db(data)
