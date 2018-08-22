@@ -1,8 +1,10 @@
+ # encoding: utf-8
 from selenium import webdriver
 import time
 import sys
 import local_path
 import pymysql
+import urllib
 
 
 FULL_CONTENT_SELECTOR = 'div[class="content clearfix"]'
@@ -11,14 +13,24 @@ COLLAPSE_TEXT_SELECTOR = '收起全文'
 CONTENT_SELECTOR = 'div[class="feed_content wbcon"] > p[class="comment_txt"]'
 EXPANDED_CONTENT_SELECTOR = 'div[class="feed_content wbcon"] > p[node-type="feed_list_content_full"]'
 URL_AND_DATE_SELECTOR = 'div[class="feed_from W_textb"] > a[node-type="feed_list_item_date"]'
+MEDIA_SELECTOR = 'div[class="WB_media_wrap clearfix"]'
+REBLOG_SELECTOR = 'div[class="comment"]'
 
-def start_driver(weibo_url):
+
+def start_driver(search_term):
 
     driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
     driver.set_window_size(1124, 850)
 
     try:
-        driver.get(weibo_url)
+        search_term = search_term.encode('utf-8')
+    except UnicodeError:
+        print('cannot encode search term to utf-8.')
+    quoted_search_term = urllib.parse.quote(search_term)
+
+    try:
+        # driver.get(weibo_url)
+        driver.get('http://s.weibo.com/weibo/{}&Refer=STopic_box'.format(quoted_search_term))
     except Exception as e:
         print('An error occured trying to visit the page.')
         print(str(e))
@@ -63,21 +75,27 @@ def scrape():
     full_content_div = driver.find_elements_by_css_selector(FULL_CONTENT_SELECTOR)
 
     content = []
-    for ele in full_content_div:
-        if ele.find_element_by_css_selector(CONTENT_SELECTOR).text == '':
-            content.append(ele.find_element_by_css_selector(EXPANDED_CONTENT_SELECTOR).text)
-        else:
-            content.append(ele.find_element_by_css_selector(CONTENT_SELECTOR).text)
+    url_and_date = []
 
-    url_and_date = [ele.find_element_by_css_selector(URL_AND_DATE_SELECTOR) for ele in full_content_div]
+    for ele in full_content_div:
+        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and not ele.find_elements_by_css_selector(REBLOG_SELECTOR):
+            if ele.find_element_by_css_selector(CONTENT_SELECTOR).text == '':
+                content.append(ele.find_element_by_css_selector(EXPANDED_CONTENT_SELECTOR).text)
+            else:
+                content.append(ele.find_element_by_css_selector(CONTENT_SELECTOR).text)
+            url_and_date.append(ele.find_element_by_css_selector(URL_AND_DATE_SELECTOR))
+
     url = [ele.get_attribute("href") for ele in url_and_date]
     date = [ele.get_attribute("title") for ele in url_and_date]
 
-
     if len(url) != len(date) or len(url) != len(content):
+        print('url:' + str(len(url)))
+        print('date:' + str(len(date)))
+        print('content:' + str(len(content)))
         sys.exit('scrapped content not aligning')
     else:
         print('scrapped content align.')
+        print('no. of posts collected: ' + str(len(content)))
         print('proceed to datbase')
 
     driver.quit()
@@ -88,7 +106,6 @@ def save_to_db():
     conn = pymysql.connect(host='127.0.0.1', unix_socket='/tmp/mysql.sock', user='root', passwd=None, db='mysql', charset='utf8')
     cur = conn.cursor()
     cur.execute("USE scraping")
-    cur.execute('INSERT INTO cultural_revolution (content, pubdate, url, mid, uid, pid) VALUES ("test_content", "1991-02-18", "test_url", "test_mid", "test_uid", "test_pid")')
     cur.connection.commit()
     cur.close()
     conn.close()
@@ -97,4 +114,5 @@ if __name__ == '__main__':
     driver = start_driver(sys.argv[1])
     expand_elements(driver)
     content, url, date = scrape()
-    save_to_db()
+    # save_to_db(content, url, date)
+    # save_to_db()
