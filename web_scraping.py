@@ -15,6 +15,7 @@ EXPANDED_CONTENT_SELECTOR = 'div[class="feed_content wbcon"] > p[node-type="feed
 URL_AND_DATE_SELECTOR = 'div[class="feed_from W_textb"] > a[node-type="feed_list_item_date"]'
 MEDIA_SELECTOR = 'div[class="WB_media_wrap clearfix"]'
 REBLOG_SELECTOR = 'div[class="comment"]'
+LINK_SELECTOR = 'a[class="W_btn_c6"]'
 
 
 def start_driver(search_term):
@@ -29,7 +30,6 @@ def start_driver(search_term):
     quoted_search_term = urllib.parse.quote(search_term)
 
     try:
-        # driver.get(weibo_url)
         driver.get('http://s.weibo.com/weibo/{}&Refer=STopic_box'.format(quoted_search_term))
     except Exception as e:
         print('An error occured trying to visit the page.')
@@ -78,7 +78,7 @@ def scrape():
     url_and_date = []
 
     for ele in full_content_div:
-        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and not ele.find_elements_by_css_selector(REBLOG_SELECTOR):
+        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and not ele.find_elements_by_css_selector(REBLOG_SELECTOR) and not ele.find_elements_by_css_selector(LINK_SELECTOR):
             if ele.find_element_by_css_selector(CONTENT_SELECTOR).text == '':
                 content.append(ele.find_element_by_css_selector(EXPANDED_CONTENT_SELECTOR).text)
             else:
