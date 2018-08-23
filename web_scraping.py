@@ -1,11 +1,11 @@
  # encoding: utf-8
-from selenium import webdriver
 import time
 import re
 import sys
 import local_path
 import pymysql
 import urllib
+from selenium import webdriver
 
 
 FULL_CONTENT_SELECTOR = 'div[class="content clearfix"]'
@@ -44,13 +44,13 @@ def expand_content(diver):
 
     try:
         expand = driver.find_elements_by_css_selector(EXPAND_SELECTOR)
-        click_counter = 0
+        clicked = 0
         for ele in expand:
             ele.click()
             ## allow time for the click to complete
             time.sleep(PAUSE_TIME)
-            click_counter += 1
-        print('click counter: ' + str(click_counter))
+            clicked += 1
+        print('clicked: {}'.format(str(clicked))
 
     except Exception as e:
         print('An error occured trying to locate or click the expand element.')
@@ -58,9 +58,9 @@ def expand_content(diver):
 
     finally:
         collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
-        print('collapse counter:' + str(len(collapse)))
+        print('collapse: {}'.format(str(len(collapse)))
 
-        if click_counter != len(collapse):
+        if clicked != len(collapse):
             sys.exit('no. of expand and collapse do not match')
 
     return
@@ -91,7 +91,7 @@ def scrape():
     if len(url) != len(date) or len(url) != len(content):
         sys.exit('scrapped content not aligning')
 
-    print('no. of posts scrapped: ' + str(len(content)))
+    print('no. of posts scrapped: {}'.format(str(len(content)))
     print('extract info for saving to database...')
     simplified_url = [u[0:u.find('?')] for u in url]
     uid = [u.split('/')[-2] for u in simplified_url]

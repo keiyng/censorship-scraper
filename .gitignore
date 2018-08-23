@@ -1,3 +1,4 @@
 local_path.py
 ghostdriver.log
+geckodriver.log
 __pycache__
