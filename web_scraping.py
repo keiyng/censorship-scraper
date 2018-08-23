@@ -27,14 +27,14 @@ def start_driver(search_term):
     try:
         search_term = search_term.encode('utf-8')
     except UnicodeError:
-        print('cannot encode search term to utf-8.')
+        sys.exit('cannot encode search term to utf-8.')
     quoted_search_term = urllib.parse.quote(search_term)
 
     try:
         driver.get('http://s.weibo.com/weibo/{}&Refer=STopic_box'.format(quoted_search_term))
     except Exception as e:
-        print('An error occured trying to visit the page.')
         print(str(e))
+        sys.exit('An error occured trying to visit the page.')
 
     return driver
 
@@ -53,18 +53,13 @@ def expand_content(diver):
         print('click counter: ' + str(click_counter))
 
     except Exception as e:
-        sys.exit('An error occured trying to locate or click the expand element.')
-        print(str(e))
-
-    try:
-        collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
-        print('collapse counter:' + str(len(collapse)))
-
-    except Exception as e:
-        print('An error occured trying to locate the collapse element.')
+        print('An error occured trying to locate or click the expand element.')
         print(str(e))
 
     finally:
+        collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
+        print('collapse counter:' + str(len(collapse)))
+
         if click_counter != len(collapse):
             sys.exit('no. of expand and collapse do not match')
 
@@ -93,11 +88,10 @@ def scrape():
     url = [ele.get_attribute("href") for ele in url_and_date]
     date = [ele.get_attribute("title") for ele in url_and_date]
 
-
     if len(url) != len(date) or len(url) != len(content):
         sys.exit('scrapped content not aligning')
 
-    print('no. of posts collected: ' + str(len(content)))
+    print('no. of posts scrapped: ' + str(len(content)))
     print('extract info for saving to database...')
     simplified_url = [u[0:u.find('?')] for u in url]
     uid = [u.split('/')[-2] for u in simplified_url]
@@ -110,18 +104,49 @@ def scrape():
 
 
 def save_to_db(content, url, uid, pid, published_date):
-    conn = pymysql.connect(host='127.0.0.1', unix_socket='/tmp/mysql.sock', user='root', passwd=None, db='mysql', charset='utf8')
+    saved = 0
+    skipped = 0
+
+    try:
+        conn = pymysql.connect(host='127.0.0.1', unix_socket='/tmp/mysql.sock', user='root', passwd=None, db='mysql', charset='utf8')
+    except Exception as e:
+        print(str(e))
+        sys.exit('unable to connect to database')
+
     cur = conn.cursor()
     cur.execute("USE scraping")
 
-    for i in range(len(content)):
-        cur.execute('''INSERT INTO cultural_revolution (content, url, uid, pid, pubdate)
-                        VALUES (%s, %s, %s, %s, %s)''', \
-                        (content[i], url[i], uid[i], pid[i], published_date[i]))
+    cur.execute('SELECT url from cultural_revolution;')
+    ## turn tuple of tuples into list of strings
+    exisiting_urls = [''.join(ele) for urls in list(cur.fetchall()) for ele in urls]
+
+    try:
+        for i in range(len(content)):
+            if url[i] not in exisiting_urls:
+                cur.execute('''INSERT INTO cultural_revolution (content, url, uid, pid, pubdate)
+                                VALUES (%s, %s, %s, %s, %s)''', \
+                                (content[i], url[i], uid[i], pid[i], published_date[i]))
+                print('saved content: {}[:15]'.format(content[i]))
+                saved += 1
+            else:
+                skipped += 1
+    except Exception as e:
+        print(str(e))
+        sys.exit('unable to insert data into databse.')
+
+    print('finished saving to database')
+    print('saved: {}; skipped: {}'.format(saved, skipped))
+
+    cur.execute('SELECT COUNT(*) FROM cultural_revolution')
+    no_of_rows = str(cur.fetchone()[0])
+    print('no. of rows in database: {}'.format(no_of_rows))
 
     cur.connection.commit()
+
     cur.close()
     conn.close()
+
+
 
 if __name__ == '__main__':
     driver = start_driver(sys.argv[1])
