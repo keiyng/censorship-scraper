@@ -16,42 +16,44 @@ def select_posts():
     cur.execute("USE scraping")
     cur.execute('SELECT url, pid from cultural_revolution WHERE pubdate > CURDATE() - INTERVAL 1 DAY')
 
-    urls_to_check = []
-    pid_to_check = []
+    to_check = {}
+
     for post in list(cur.fetchall()):
-        urls_to_check.append(post[0])
-        pid_to_check.append(post[1])
+        to_check.update({post[0]: post[1]})
 
     cur.close()
     conn.close()
 
-    return urls_to_check, pid_to_check
+
+    return to_check
 
 
-def check(urls_to_check, pid_to_check):
+def check(to_check):
 
     driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
     driver.set_window_size(1124, 850)
 
-    for url in urls_to_check:
+    for url, pid in to_check.items():
         try:
             driver.get(url)
             ## allow time for page to load (or possibly redirect)
             time.sleep(20)
-            print('visiting {}'.format(driver.current_url))
+            current_url = driver.current_url
+            print('visiting {}'.format(current_url))
+
+            if pid not in current_url:
+                print('pid {} not found in current url: {}'.format(pid, current_url))
+                print('original url is: {}'.format(url))
+
 
         except Exception as e:
             print(str(e))
             print('An error occured trying to visit {}.'.format(url))
 
-
     driver.quit()
-
-    for url in urls_to_check:
-        print(url)
 
 
 
 if __name__ == '__main__':
-    urls_to_check, pid_to_check = select_posts()
-    check(urls_to_check, pid_to_check)
+    to_check = select_posts()
+    check(to_check)
