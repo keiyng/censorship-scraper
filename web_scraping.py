@@ -3,7 +3,7 @@ import time
 import re
 import sys
 import local_path
-import pymysql
+import connect_to_db
 import urllib
 from selenium import webdriver
 
@@ -19,9 +19,10 @@ REBLOG_SELECTOR = 'div[class="comment"]'
 LINK_SELECTOR = 'a[class="W_btn_c6"]'
 
 
-def start_driver(search_term):
+def get_page(search_term):
 
     driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
+    ## necessary for elements to be located
     driver.set_window_size(1124, 850)
 
     try:
@@ -103,29 +104,22 @@ def scrape():
     return content, simplified_url, uid, pid, published_date
 
 
-def save_to_db(content, url, uid, pid, published_date):
+def save_to_db(content, url, uid, pid, published_date, table):
     saved = 0
     skipped = 0
 
-    try:
-        conn = pymysql.connect(host='127.0.0.1', unix_socket='/tmp/mysql.sock', user='root', passwd=None, db='mysql', charset='utf8')
-    except Exception as e:
-        print(str(e))
-        sys.exit('unable to connect to database')
+    conn, cur = connect_to_db.connect()
 
-    cur = conn.cursor()
-    cur.execute("USE scraping")
-
-    cur.execute('SELECT url from cultural_revolution;')
+    cur.execute('SELECT url from {}'.format(table))
     ## turn tuple of tuples into list of strings
     exisiting_urls = [''.join(ele) for urls in list(cur.fetchall()) for ele in urls]
 
     try:
         for i in range(len(content)):
             if url[i] not in exisiting_urls:
-                cur.execute('''INSERT INTO cultural_revolution (content, url, uid, pid, pubdate, tested, testdate, status)
+                cur.execute('''INSERT INTO %s (content, url, uid, pid, pubdate, tested, testdate, status)
                                 VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)''', \
-                                (content[i], url[i], uid[i], pid[i], published_date[i]))
+                                (table, content[i], url[i], uid[i], pid[i], published_date[i]))
                 print('saved content: {}'.format(content[i][:15]))
                 saved += 1
             else:
@@ -137,7 +131,7 @@ def save_to_db(content, url, uid, pid, published_date):
     print('finished saving to database')
     print('saved: {}; skipped: {}'.format(saved, skipped))
 
-    cur.execute('SELECT COUNT(*) FROM cultural_revolution')
+    cur.execute('SELECT COUNT(*) FROM {}'.format(table))
     no_of_rows = str(cur.fetchone()[0])
     print('no. of rows in database: {}'.format(no_of_rows))
 
@@ -149,7 +143,7 @@ def save_to_db(content, url, uid, pid, published_date):
     return
 
 if __name__ == '__main__':
-    driver = start_driver(sys.argv[1])
+    driver = get_page(sys.argv[1])
     expand_content(driver)
     content, url, uid, pid, published_date = scrape()
-    save_to_db(content, url, uid, pid, published_date)
+    save_to_db(content, url, uid, pid, published_date, sys.argv[2])
