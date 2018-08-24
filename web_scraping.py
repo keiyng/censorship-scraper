@@ -50,7 +50,7 @@ def expand_content(diver):
             ## allow time for the click to complete
             time.sleep(PAUSE_TIME)
             clicked += 1
-        print('clicked: {}'.format(str(clicked))
+        print('clicked: {}'.format(str(clicked)))
 
     except Exception as e:
         print('An error occured trying to locate or click the expand element.')
@@ -58,7 +58,7 @@ def expand_content(diver):
 
     finally:
         collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
-        print('collapse: {}'.format(str(len(collapse)))
+        print('collapse: {}'.format(str(len(collapse))))
 
         if clicked != len(collapse):
             sys.exit('no. of expand and collapse do not match')
@@ -91,7 +91,7 @@ def scrape():
     if len(url) != len(date) or len(url) != len(content):
         sys.exit('scrapped content not aligning')
 
-    print('no. of posts scrapped: {}'.format(str(len(content)))
+    print('no. of posts scrapped: {}'.format(str(len(content))))
     print('extract info for saving to database...')
     simplified_url = [u[0:u.find('?')] for u in url]
     uid = [u.split('/')[-2] for u in simplified_url]
@@ -123,10 +123,10 @@ def save_to_db(content, url, uid, pid, published_date):
     try:
         for i in range(len(content)):
             if url[i] not in exisiting_urls:
-                cur.execute('''INSERT INTO cultural_revolution (content, url, uid, pid, pubdate)
-                                VALUES (%s, %s, %s, %s, %s)''', \
+                cur.execute('''INSERT INTO cultural_revolution (content, url, uid, pid, pubdate, tested, testdate, status)
+                                VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)''', \
                                 (content[i], url[i], uid[i], pid[i], published_date[i]))
-                print('saved content: {}[:15]'.format(content[i]))
+                print('saved content: {}'.format(content[i][:15]))
                 saved += 1
             else:
                 skipped += 1
@@ -146,7 +146,7 @@ def save_to_db(content, url, uid, pid, published_date):
     cur.close()
     conn.close()
 
-
+    return
 
 if __name__ == '__main__':
     driver = start_driver(sys.argv[1])
