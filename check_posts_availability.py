@@ -1,59 +1,79 @@
 # encoding: utf-8
 import sys
 import time
-import pymysql
+# import pymysql
 import local_path
+import connect_to_db
 from selenium import webdriver
 
 def select_posts():
-    try:
-        conn = pymysql.connect(host='127.0.0.1', unix_socket='/tmp/mysql.sock', user='root', passwd=None, db='mysql', charset='utf8')
-    except Exception as e:
-        print(str(e))
-        sys.exit('unable to connect to database')
+    conn, cur = connect_to_db.connect()
+    cur.execute(
+    '''SELECT url, pid from cultural_revolution
+    WHERE pubdate < CURDATE() - INTERVAL 1 DAY
+    ## AND tested = "not yet" ''')
 
-    cur = conn.cursor()
-    cur.execute("USE scraping")
-    cur.execute('SELECT url, pid from cultural_revolution WHERE pubdate > CURDATE() - INTERVAL 1 DAY')
 
-    to_check = {}
-
-    for post in list(cur.fetchall()):
-        to_check.update({post[0]: post[1]})
+    data = list(cur.fetchall())
+    print('no. of posts to be tested: {}'.format(len(data)))
 
     cur.close()
     conn.close()
 
+    return data
 
-    return to_check
 
-
-def check(to_check):
+def check(data):
 
     driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
     driver.set_window_size(1124, 850)
 
-    for url, pid in to_check.items():
+    conn, cur = connect_to_db.connect()
+
+    for url, pid in data:
         try:
             driver.get(url)
             ## allow time for page to load (or possibly redirect)
             time.sleep(20)
-            current_url = driver.current_url
-            print('visiting {}'.format(current_url))
-
-            if pid not in current_url:
-                print('pid {} not found in current url: {}'.format(pid, current_url))
-                print('original url is: {}'.format(url))
-
-
         except Exception as e:
             print(str(e))
             print('An error occured trying to visit {}.'.format(url))
 
+        print('visiting {}'.format(url))
+        current_url = driver.current_url
+
+        update_db(url, pid, current_url, conn, cur)
+
+    cur.close()
+    conn.close()
     driver.quit()
 
+def update_db(url, pid, current_url, conn, cur):
+
+    try:
+        if pid not in current_url:
+            print('***pid {} not found in current url: {}'.format(pid, current_url))
+            print('original url is: {} ***'.format(url))
+
+            cur.execute('''UPDATE cultural_revolution
+            SET tested = "yes", testdate = CURDATE(), status = "not available"
+            WHERE pid = %s''', \
+            (pid))
+
+        else:
+            cur.execute('''UPDATE cultural_revolution
+            SET tested = "yes", testdate = CURDATE(), status = "available"
+            WHERE pid = %s''', \
+            (pid))
+
+    except Exception as e:
+        print(str(e))
+        print('unable to update record.')
+
+    finally:
+        cur.connection.commit()
 
 
 if __name__ == '__main__':
-    to_check = select_posts()
-    check(to_check)
+    data = select_posts()
+    check(data)
