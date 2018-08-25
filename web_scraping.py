@@ -1,7 +1,7 @@
  # encoding: utf-8
 import time
-import re
 import sys
+import signal
 import local_path
 import connect_to_db
 import urllib
@@ -17,6 +17,12 @@ URL_AND_DATE_SELECTOR = 'div[class="feed_from W_textb"] > a[node-type="feed_list
 MEDIA_SELECTOR = 'div[class="WB_media_wrap clearfix"]'
 REBLOG_SELECTOR = 'div[class="comment"]'
 LINK_SELECTOR = 'a[class="W_btn_c6"]'
+
+def timeout_handler(signum, frame):
+    raise Exception("it's taking too long to get the pages")
+
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(240)
 
 
 def get_page(search_term):
@@ -57,12 +63,15 @@ def expand_content(diver):
         print('An error occured trying to locate or click the expand element.')
         print(str(e))
 
-    finally:
+    else:
         collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
         print('collapse: {}'.format(str(len(collapse))))
 
         if clicked != len(collapse):
+            driver.quit()
             sys.exit('no. of expand and collapse do not match')
+
+        signal.alarm(0)
 
     return
 
@@ -90,6 +99,7 @@ def scrape():
     date = [ele.get_attribute("title") for ele in url_and_date]
 
     if len(url) != len(date) or len(url) != len(content):
+        driver.quit()
         sys.exit('scrapped content not aligning')
 
     print('no. of posts scrapped: {}'.format(str(len(content))))
@@ -117,15 +127,17 @@ def save_to_db(content, url, uid, pid, published_date, table):
     try:
         for i in range(len(content)):
             if url[i] not in exisiting_urls:
-                cur.execute('''INSERT INTO %s (content, url, uid, pid, pubdate, tested, testdate, status)
-                                VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)''', \
-                                (table, content[i], url[i], uid[i], pid[i], published_date[i]))
+                cur.execute('''INSERT INTO {} (content, url, uid, pid, pubdate, tested, testdate, status)
+                                VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
+                                (content[i], url[i], uid[i], pid[i], published_date[i]))
                 print('saved content: {}'.format(content[i][:15]))
                 saved += 1
             else:
                 skipped += 1
     except Exception as e:
         print(str(e))
+        cur.close()
+        conn.close()
         sys.exit('unable to insert data into databse.')
 
     print('finished saving to database')

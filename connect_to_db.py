@@ -7,6 +7,8 @@ def connect():
         cur = conn.cursor()
         cur.execute("USE scraping")
     except Exception as e:
+        cur.close()
+        conn.close()
         print(str(e))
         sys.exit('unable to connect to database')
     else:
