@@ -19,17 +19,17 @@ REBLOG_SELECTOR = 'div[class="comment"]'
 LINK_SELECTOR = 'a[class="W_btn_c6"]'
 
 def timeout_handler(signum, frame):
-    raise Exception("it's taking too long to get the pages")
-
-signal.signal(signal.SIGALRM, timeout_handler)
-signal.alarm(240)
+    raise Exception("the process took too long to complete")
+    sys.exit()
 
 
 def get_page(search_term):
 
-    driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
-    ## necessary for elements to be located
-    driver.set_window_size(1124, 850)
+    get_success = False
+
+    ## allow 2 minutes max to complete getting page and expanding elements
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(120)
 
     try:
         search_term = search_term.encode('utf-8')
@@ -37,43 +37,64 @@ def get_page(search_term):
         sys.exit('cannot encode search term to utf-8.')
     quoted_search_term = urllib.parse.quote(search_term)
 
-    try:
-        driver.get('http://s.weibo.com/weibo/{}&Refer=STopic_box'.format(quoted_search_term))
-    except Exception as e:
-        print(str(e))
-        sys.exit('An error occured trying to visit the page.')
+    while get_success is False:
+
+        try:
+            print('starting the driver...')
+            driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
+            ## necessary for elements to be located
+            driver.set_window_size(1124, 850)
+            print('getting the page...')
+            driver.get('http://s.weibo.com/weibo/{}&Refer=STopic_box'.format(quoted_search_term))
+            get_success = True
+        except Exception as e:
+            print(str(e))
+            print('An error occured trying to visit the page.')
+            get_success = False
+            time.sleep(5)
+        else:
+            get_success = expand_content(driver, get_success)
+
+    signal.alarm(0)
 
     return driver
 
-def expand_content(diver):
+def expand_content(driver, get_success):
 
-    PAUSE_TIME = 5
+    expand_success = False
 
-    try:
-        expand = driver.find_elements_by_css_selector(EXPAND_SELECTOR)
-        clicked = 0
-        for ele in expand:
-            ele.click()
-            ## allow time for the click to complete
-            time.sleep(PAUSE_TIME)
-            clicked += 1
-        print('clicked: {}'.format(str(clicked)))
+    while expand_success is False:
 
-    except Exception as e:
-        print('An error occured trying to locate or click the expand element.')
-        print(str(e))
+        try:
+            expand = driver.find_elements_by_css_selector(EXPAND_SELECTOR)
+            clicked = 0
+            print('expanding the elements...')
+            for ele in expand:
+                ele.click()
+                ## allow time for the click to complete
+                time.sleep(5)
+                clicked += 1
 
-    else:
-        collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
-        print('collapse: {}'.format(str(len(collapse))))
+        except Exception as e:
+            print('An error occured trying to click the expand element.')
+            print(str(e))
+            expand_success = False
+            time.sleep(5)
 
-        if clicked != len(collapse):
-            driver.quit()
-            sys.exit('no. of expand and collapse do not match')
+        else:
+            collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
 
-        signal.alarm(0)
+            if clicked != len(collapse):
+                driver.quit()
+                get_success = False
+                print('no. of expand and collapse do not match. start again...')
+                time.sleep(10)
+                break
+            else:
+                expand_success = True
 
-    return
+
+    return get_success
 
 
 def scrape():
@@ -114,7 +135,7 @@ def scrape():
     return content, simplified_url, uid, pid, published_date
 
 
-def save_to_db(content, url, uid, pid, published_date, table):
+def save_to_db(table):
     saved = 0
     skipped = 0
 
@@ -130,7 +151,7 @@ def save_to_db(content, url, uid, pid, published_date, table):
                 cur.execute('''INSERT INTO {} (content, url, uid, pid, pubdate, tested, testdate, status)
                                 VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
                                 (content[i], url[i], uid[i], pid[i], published_date[i]))
-                print('saved content: {}'.format(content[i][:15]))
+                print('saved content: {} ...'.format(content[i][:15]))
                 saved += 1
             else:
                 skipped += 1
@@ -156,6 +177,5 @@ def save_to_db(content, url, uid, pid, published_date, table):
 
 if __name__ == '__main__':
     driver = get_page(sys.argv[1])
-    expand_content(driver)
     content, url, uid, pid, published_date = scrape()
-    save_to_db(content, url, uid, pid, published_date, sys.argv[2])
+    save_to_db(sys.argv[2])
