@@ -145,21 +145,23 @@ def save_to_db(table):
     ## turn tuple of tuples into list of strings
     exisiting_urls = [''.join(ele) for urls in list(cur.fetchall()) for ele in urls]
 
-    try:
-        for i in range(len(content)):
-            if url[i] not in exisiting_urls:
+
+    for i in range(len(content)):
+        if url[i] not in exisiting_urls:
+            try:
+                print('inserting data {}...'.format(content[i])[:10])
                 cur.execute('''INSERT INTO {} (content, url, uid, pid, pubdate, tested, testdate, status)
                                 VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
                                 (content[i], url[i], uid[i], pid[i], published_date[i]))
                 print('saved content: {} ...'.format(content[i][:15]))
                 saved += 1
-            else:
-                skipped += 1
-    except Exception as e:
-        print(str(e))
-        cur.close()
-        conn.close()
-        sys.exit('unable to insert data into databse.')
+            except Exception as e:
+                print(str(e))
+                print('unable to insert data into databse.')
+                continue
+        else:
+            skipped += 1
+
 
     print('finished saving to database')
     print('saved: {}; skipped: {}'.format(saved, skipped))

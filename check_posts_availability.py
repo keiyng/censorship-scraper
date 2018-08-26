@@ -24,7 +24,6 @@ def select_posts(table):
     conn.close()
 
     return data
-##commit -am "call expand_elements() inside get_page(); add while loops to rerun functions/statements in case of exceptions; adjust other exception handling"
 
 def check():
 
