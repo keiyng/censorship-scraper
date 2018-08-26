@@ -1,6 +1,7 @@
  # encoding: utf-8
 import time
 import sys
+import re
 import signal
 import local_path
 import connect_to_db
@@ -17,6 +18,8 @@ URL_AND_DATE_SELECTOR = 'div[class="feed_from W_textb"] > a[node-type="feed_list
 MEDIA_SELECTOR = 'div[class="WB_media_wrap clearfix"]'
 REBLOG_SELECTOR = 'div[class="comment"]'
 LINK_SELECTOR = 'a[class="W_btn_c6"]'
+EMOJI = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
+
 
 def timeout_handler(signum, frame):
     raise Exception("the process took too long to complete")
@@ -59,12 +62,12 @@ def get_page(search_term):
 
     return driver
 
+
 def expand_content(driver, get_success):
 
     expand_success = False
 
     while expand_success is False:
-
         try:
             expand = driver.find_elements_by_css_selector(EXPAND_SELECTOR)
             clicked = 0
@@ -93,7 +96,6 @@ def expand_content(driver, get_success):
             else:
                 expand_success = True
 
-
     return get_success
 
 
@@ -105,7 +107,7 @@ def scrape():
     url_and_date = []
 
     for ele in full_content_div:
-        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and  \
+        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and \
         not ele.find_elements_by_css_selector(REBLOG_SELECTOR) and \
         not ele.find_elements_by_css_selector(LINK_SELECTOR):
 
@@ -115,6 +117,9 @@ def scrape():
                 content.append(ele.find_element_by_css_selector(CONTENT_SELECTOR).text)
 
             url_and_date.append(ele.find_element_by_css_selector(URL_AND_DATE_SELECTOR))
+
+
+    content = [EMOJI.sub(r'', text) for text in content]
 
     url = [ele.get_attribute("href") for ele in url_and_date]
     date = [ele.get_attribute("title") for ele in url_and_date]
@@ -145,11 +150,10 @@ def save_to_db(table):
     ## turn tuple of tuples into list of strings
     exisiting_urls = [''.join(ele) for urls in list(cur.fetchall()) for ele in urls]
 
-
     for i in range(len(content)):
+
         if url[i] not in exisiting_urls:
             try:
-                print('inserting data {}...'.format(content[i])[:10])
                 cur.execute('''INSERT INTO {} (content, url, uid, pid, pubdate, tested, testdate, status)
                                 VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
                                 (content[i], url[i], uid[i], pid[i], published_date[i]))
@@ -161,7 +165,6 @@ def save_to_db(table):
                 continue
         else:
             skipped += 1
-
 
     print('finished saving to database')
     print('saved: {}; skipped: {}'.format(saved, skipped))
