@@ -2,6 +2,7 @@
 import time
 import sys
 import re
+import os
 import signal
 import local_path
 import connect_to_db
@@ -144,6 +145,8 @@ def save_to_db(table):
     saved = 0
     skipped = 0
 
+    os.system('{} start'.format(local_path.mysql_path))
+
     conn, cur = connect_to_db.connect()
 
     cur.execute('SELECT url from {}'.format(table))
@@ -157,11 +160,11 @@ def save_to_db(table):
                 cur.execute('''INSERT INTO {} (content, url, uid, pid, pubdate, tested, testdate, status)
                                 VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
                                 (content[i], url[i], uid[i], pid[i], published_date[i]))
-                print('saved content: {} ...'.format(content[i][:15]))
+                print('saved pid: {} ...'.format(pid[i]))
                 saved += 1
             except Exception as e:
                 print(str(e))
-                print('unable to insert data into databse.')
+                print('unable to insert pid {} ... into table.'.format(pid))
                 continue
         else:
             skipped += 1
@@ -177,6 +180,8 @@ def save_to_db(table):
 
     cur.close()
     conn.close()
+
+    os.system('{} stop'.format(local_path.mysql_path))
 
     return
 
