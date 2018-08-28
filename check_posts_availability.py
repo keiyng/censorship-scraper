@@ -1,20 +1,15 @@
 # encoding: utf-8
 import sys
 import time
-# import signal
 import local_path
 import connect_to_db
 from selenium import webdriver
-
-def timeout_handler(signum, frame):
-    raise Exception("the process took too long to complete")
-    sys.exit()
 
 def select_posts(table):
     conn, cur = connect_to_db.connect()
     cur.execute(
     '''SELECT url, pid from {}
-    WHERE pubdate < CURDATE() - INTERVAL 1 DAY
+    WHERE pubdate < CURDATE() - INTERVAL 2 DAY
     AND tested = "not yet" '''.format(table))
 
     data = list(cur.fetchall())
@@ -64,7 +59,7 @@ def update_db(url, pid, current_url, conn, cur, table):
 
             cur.execute('''UPDATE {}
             SET tested = "yes", testdate = CURDATE(), status = "not available"
-            WHERE pid = {}'''.format(table), \
+            WHERE pid = %s'''.format(table), \
             (pid))
 
         else:
@@ -74,12 +69,10 @@ def update_db(url, pid, current_url, conn, cur, table):
             (pid))
 
     except Exception as e:
-        cur.close()
-        conn.close()
         print(str(e))
         print('unable to update record. pid: {}'.format(pid))
 
-    finally:
+    else:
         cur.connection.commit()
 
 
