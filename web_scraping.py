@@ -11,7 +11,7 @@ import urllib
 from selenium import webdriver
 
 
-FULL_CONTENT_SELECTOR = 'div[class="content clearfix"]'
+FULL_CONTENT_SELECTOR = 'div[action-type="feed_list_item"]'
 EXPAND_SELECTOR = 'div[class="feed_content wbcon"] > p[class="comment_txt"] > a[class="WB_text_opt"]'
 COLLAPSE_TEXT_SELECTOR = '收起全文'
 CONTENT_SELECTOR = 'div[class="feed_content wbcon"] > p[class="comment_txt"]'
@@ -105,6 +105,7 @@ def scrape(thread_name, driver):
 
    content = []
    url_and_date = []
+   mid = []
 
    for ele in full_content_div:
        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and \
@@ -117,7 +118,7 @@ def scrape(thread_name, driver):
                content.append(ele.find_element_by_css_selector(CONTENT_SELECTOR).text)
 
            url_and_date.append(ele.find_element_by_css_selector(URL_AND_DATE_SELECTOR))
-
+           mid.append(ele.get_attribute("mid"))
 
    content = [EMOJI.sub(r'', text) for text in content]
 
@@ -136,7 +137,7 @@ def scrape(thread_name, driver):
 
    driver.quit()
 
-   data = {'content': content, 'url': simplified_url, 'uid': uid, 'pid': pid, 'published_date': published_date}
+   data = {'content': content, 'url': simplified_url, 'uid': uid, 'pid': pid, 'mid': mid, 'published_date': published_date}
 
    return data
 
@@ -145,7 +146,6 @@ def save_to_db(table, queue):
    saved = 0
    skipped = 0
 
-   os.system('{} start'.format(local_path.mysql_path))
    conn, cur = connect_to_db.connect()
 
    cur.execute('SELECT url from {}'.format(table))
@@ -159,11 +159,13 @@ def save_to_db(table, queue):
            if data["url"][i] not in exisiting_urls:
 
                try:
-                   cur.execute('''INSERT INTO {} (content, url, uid, pid, pubdate, tested, testdate, status)
+                   cur.execute('''INSERT INTO {} (content, url, uid, pid, mid, pubdate, tested, testdate, status)
                                    VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
-                                   (data["content"][i], data["url"][i], data["uid"][i], data["pid"][i], data["published_date"][i]))
+                                   (data["content"][i], data["url"][i], data["uid"][i], data["pid"][i], data["mid"][i], data["published_date"][i]))
                    print('saved pid: {}'.format(data["pid"][i]))
+
                    saved += 1
+                   cur.connection.commit()
                except Exception as e:
                    print(str(e))
                    print('unable to insert pid {} ... into table.'.format(data["pid"][i]))
@@ -177,12 +179,9 @@ def save_to_db(table, queue):
    no_of_rows = str(cur.fetchone()[0])
    print('no. of rows in database: {}'.format(no_of_rows))
 
-   cur.connection.commit()
-
    cur.close()
    conn.close()
 
-   os.system('{} stop'.format(local_path.mysql_path))
 
    return
 
