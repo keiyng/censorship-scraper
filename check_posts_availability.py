@@ -1,6 +1,7 @@
 # encoding: utf-8
 import sys
 import time
+# import os
 import local_path
 import connect_to_db
 from selenium import webdriver
@@ -30,11 +31,14 @@ def check():
         driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
         driver.set_window_size(1124, 850)
 
+        counter = 0
+
         for url, pid in data:
             try:
                 driver.get(url)
                 ## allow time for page to load (or possibly redirect)
-                print('visiting {}'.format(url))
+                counter += 1
+                print('{} visiting {}'.format(counter, url))
                 time.sleep(20)
             except Exception as e:
                 print(str(e))
