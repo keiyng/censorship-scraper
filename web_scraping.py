@@ -20,6 +20,7 @@ URL_AND_DATE_SELECTOR = 'div[class="feed_from W_textb"] > a[node-type="feed_list
 MEDIA_SELECTOR = 'div[class="WB_media_wrap clearfix"]'
 REBLOG_SELECTOR = 'div[class="comment"]'
 LINK_SELECTOR = 'a[class="W_btn_c6"]'
+LINK_SELECTOR_2 = '网页链接'
 EMOJI = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
 
 def get_page(thread_name, search_term, queue):
@@ -110,7 +111,8 @@ def scrape(thread_name, driver):
    for ele in full_content_div:
        if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and \
        not ele.find_elements_by_css_selector(REBLOG_SELECTOR) and \
-       not ele.find_elements_by_css_selector(LINK_SELECTOR):
+       not ele.find_elements_by_css_selector(LINK_SELECTOR) and \
+       not ele.find_elements_by_partial_link_text(LINK_SELECTOR_2):
 
            if ele.find_element_by_css_selector(CONTENT_SELECTOR).text == '':
                content.append(ele.find_element_by_css_selector(EXPANDED_CONTENT_SELECTOR).text)
@@ -160,7 +162,7 @@ def save_to_db(table, queue):
 
                try:
                    cur.execute('''INSERT INTO {} (content, url, uid, pid, mid, pubdate, tested, testdate, status)
-                                   VALUES (%s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
+                                   VALUES (%s, %s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
                                    (data["content"][i], data["url"][i], data["uid"][i], data["pid"][i], data["mid"][i], data["published_date"][i]))
                    print('saved pid: {}'.format(data["pid"][i]))
 
