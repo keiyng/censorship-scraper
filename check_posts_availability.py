@@ -1,13 +1,12 @@
 # encoding: utf-8
 import sys
 import time
-# import os
 import local_path
-import connect_to_db
+import mysql_database
 from selenium import webdriver
 
 def select_posts(table):
-    conn, cur = connect_to_db.connect()
+    conn, cur = mysql_database.connect()
     cur.execute(
     '''SELECT url, pid from {}
     WHERE pubdate < CURDATE() - INTERVAL 2 DAY
@@ -16,8 +15,7 @@ def select_posts(table):
     data = list(cur.fetchall())
     print('no. of posts to be tested: {}'.format(len(data)))
 
-    cur.close()
-    conn.close()
+    mysql_database.disconnect(conn, cur)
 
     return data
 
@@ -25,7 +23,7 @@ def check():
 
     if len(data) > 0:
 
-        conn, cur = connect_to_db.connect()
+        conn, cur = mysql_database.connect()
 
         print('starting the driver...')
         driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
@@ -48,8 +46,7 @@ def check():
                 current_url = driver.current_url
                 update_db(url, pid, current_url, conn, cur, sys.argv[1])
 
-        cur.close()
-        conn.close()
+        mysql_database.disconnect(conn, cur)
         driver.quit()
 
     return

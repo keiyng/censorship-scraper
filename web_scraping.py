@@ -6,21 +6,11 @@ import os
 import threading
 from queue import Queue
 import local_path
-import connect_to_db
+import mysql_database
 import urllib
+import element_selectors
 from selenium import webdriver
 
-
-FULL_CONTENT_SELECTOR = 'div[action-type="feed_list_item"]'
-EXPAND_SELECTOR = 'div[class="feed_content wbcon"] > p[class="comment_txt"] > a[class="WB_text_opt"]'
-COLLAPSE_TEXT_SELECTOR = '收起全文'
-CONTENT_SELECTOR = 'div[class="feed_content wbcon"] > p[class="comment_txt"]'
-EXPANDED_CONTENT_SELECTOR = 'div[class="feed_content wbcon"] > p[node-type="feed_list_content_full"]'
-URL_AND_DATE_SELECTOR = 'div[class="feed_from W_textb"] > a[node-type="feed_list_item_date"]'
-MEDIA_SELECTOR = 'div[class="WB_media_wrap clearfix"]'
-REBLOG_SELECTOR = 'div[class="comment"]'
-LINK_SELECTOR = 'a[class="W_btn_c6"]'
-LINK_SELECTOR_2 = '网页链接'
 EMOJI = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
 
 def get_page(thread_name, search_term, queue):
@@ -68,7 +58,7 @@ def expand_content(thread_name, driver, get_success, get_failure):
 
    while expand_success is False and expand_failure < 2:
        try:
-           expand = driver.find_elements_by_css_selector(EXPAND_SELECTOR)
+           expand = driver.find_elements_by_css_selector(element_selectors.EXPAND_SELECTOR)
            clicked = 0
            print('expanding the elements for {}...'.format(thread_name))
            for ele in expand:
@@ -85,7 +75,7 @@ def expand_content(thread_name, driver, get_success, get_failure):
            time.sleep(5)
 
        else:
-           collapse = driver.find_elements_by_partial_link_text(COLLAPSE_TEXT_SELECTOR)
+           collapse = driver.find_elements_by_partial_link_text(element_selectors.COLLAPSE_TEXT_SELECTOR)
 
            if clicked != len(collapse):
                driver.quit()
@@ -102,24 +92,24 @@ def expand_content(thread_name, driver, get_success, get_failure):
 
 def scrape(thread_name, driver):
 
-   full_content_div = driver.find_elements_by_css_selector(FULL_CONTENT_SELECTOR)
+   full_content_div = driver.find_elements_by_css_selector(element_selectors.FULL_CONTENT_SELECTOR)
 
    content = []
    url_and_date = []
    mid = []
 
    for ele in full_content_div:
-       if not ele.find_elements_by_css_selector(MEDIA_SELECTOR) and \
-       not ele.find_elements_by_css_selector(REBLOG_SELECTOR) and \
-       not ele.find_elements_by_css_selector(LINK_SELECTOR) and \
-       not ele.find_elements_by_partial_link_text(LINK_SELECTOR_2):
+       if not ele.find_elements_by_css_selector(element_selectors.MEDIA_SELECTOR) and \
+       not ele.find_elements_by_css_selector(element_selectors.REBLOG_SELECTOR) and \
+       not ele.find_elements_by_css_selector(element_selectors.LINK_SELECTOR) and \
+       not ele.find_elements_by_partial_link_text(element_selectors.LINK_SELECTOR_2):
 
-           if ele.find_element_by_css_selector(CONTENT_SELECTOR).text == '':
-               content.append(ele.find_element_by_css_selector(EXPANDED_CONTENT_SELECTOR).text)
+           if ele.find_element_by_css_selector(element_selectors.CONTENT_SELECTOR).text == '':
+               content.append(ele.find_element_by_css_selector(element_selectors.EXPANDED_CONTENT_SELECTOR).text)
            else:
-               content.append(ele.find_element_by_css_selector(CONTENT_SELECTOR).text)
+               content.append(ele.find_element_by_css_selector(element_selectors.CONTENT_SELECTOR).text)
 
-           url_and_date.append(ele.find_element_by_css_selector(URL_AND_DATE_SELECTOR))
+           url_and_date.append(ele.find_element_by_css_selector(element_selectors.URL_AND_DATE_SELECTOR))
            mid.append(ele.get_attribute("mid"))
 
    content = [EMOJI.sub(r'', text) for text in content]
@@ -148,7 +138,7 @@ def save_to_db(table, queue):
    saved = 0
    skipped = 0
 
-   conn, cur = connect_to_db.connect()
+   conn, cur = mysql_database.connect()
 
    cur.execute('SELECT url from {}'.format(table))
    ## turn tuple of tuples into list of strings
@@ -181,9 +171,7 @@ def save_to_db(table, queue):
    no_of_rows = str(cur.fetchone()[0])
    print('no. of rows in database: {}'.format(no_of_rows))
 
-   cur.close()
-   conn.close()
-
+   mysql_database.disconnect(conn, cur)
 
    return
 
