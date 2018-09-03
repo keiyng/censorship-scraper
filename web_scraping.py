@@ -4,11 +4,10 @@ import sys
 import re
 import os
 import threading
-from queue import Queue
-import local_path
-import mysql_database
 import urllib
-import element_selectors
+from queue import Queue
+from connections import mysql_database
+from variables import element_selector, local_path
 from selenium import webdriver
 
 EMOJI = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
@@ -58,7 +57,7 @@ def expand_content(thread_name, driver, get_success, get_failure):
 
    while expand_success is False and expand_failure < 2:
        try:
-           expand = driver.find_elements_by_css_selector(element_selectors.EXPAND_SELECTOR)
+           expand = driver.find_elements_by_css_selector(element_selector.EXPAND_SELECTOR)
            clicked = 0
            print('expanding the elements for {}...'.format(thread_name))
            for ele in expand:
@@ -75,7 +74,7 @@ def expand_content(thread_name, driver, get_success, get_failure):
            time.sleep(5)
 
        else:
-           collapse = driver.find_elements_by_partial_link_text(element_selectors.COLLAPSE_TEXT_SELECTOR)
+           collapse = driver.find_elements_by_partial_link_text(element_selector.COLLAPSE_TEXT_SELECTOR)
 
            if clicked != len(collapse):
                driver.quit()
@@ -92,24 +91,24 @@ def expand_content(thread_name, driver, get_success, get_failure):
 
 def scrape(thread_name, driver):
 
-   full_content_div = driver.find_elements_by_css_selector(element_selectors.FULL_CONTENT_SELECTOR)
+   full_content_div = driver.find_elements_by_css_selector(element_selector.FULL_CONTENT_SELECTOR)
 
    content = []
    url_and_date = []
    mid = []
 
    for ele in full_content_div:
-       if not ele.find_elements_by_css_selector(element_selectors.MEDIA_SELECTOR) and \
-       not ele.find_elements_by_css_selector(element_selectors.REBLOG_SELECTOR) and \
-       not ele.find_elements_by_css_selector(element_selectors.LINK_SELECTOR) and \
-       not ele.find_elements_by_partial_link_text(element_selectors.LINK_SELECTOR_2):
+       if not ele.find_elements_by_css_selector(element_selector.MEDIA_SELECTOR) and \
+       not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR) and \
+       not ele.find_elements_by_css_selector(element_selector.LINK_SELECTOR) and \
+       not ele.find_elements_by_partial_link_text(element_selector.LINK_SELECTOR_2):
 
-           if ele.find_element_by_css_selector(element_selectors.CONTENT_SELECTOR).text == '':
-               content.append(ele.find_element_by_css_selector(element_selectors.EXPANDED_CONTENT_SELECTOR).text)
+           if ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text == '':
+               content.append(ele.find_element_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR).text)
            else:
-               content.append(ele.find_element_by_css_selector(element_selectors.CONTENT_SELECTOR).text)
+               content.append(ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text)
 
-           url_and_date.append(ele.find_element_by_css_selector(element_selectors.URL_AND_DATE_SELECTOR))
+           url_and_date.append(ele.find_element_by_css_selector(element_selector.URL_AND_DATE_SELECTOR))
            mid.append(ele.get_attribute("mid"))
 
    content = [EMOJI.sub(r'', text) for text in content]

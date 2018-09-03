@@ -1,8 +1,8 @@
 # encoding: utf-8
 import sys
 import time
-import local_path
-import mysql_database
+from connections import mysql_database
+from variables import local_path
 from selenium import webdriver
 
 def select_posts(table):
