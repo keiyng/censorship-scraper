@@ -5,6 +5,7 @@ import re
 import os
 import threading
 import urllib
+import argparse
 from queue import Queue
 from connections import mysql_database
 from variables import element_selector, local_path
@@ -177,13 +178,20 @@ def save_to_db(table, queue):
 
 
 if __name__ == '__main__':
-    table = sys.argv[-1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('terms', nargs='+')
+    parser.add_argument('table', nargs=1)
+
+    args = vars(parser.parse_args())
+    terms = args["terms"]
+    table = args["table"][0]
+
     queue = Queue()
     threads = []
 
     try:
-        for i in range(1, len(sys.argv) - 1):
-            thread = threading.Thread(target=get_page, args=('thread {}'.format(str(i)), sys.argv[i], queue))
+        for i in range(len(terms)):
+            thread = threading.Thread(target=get_page, args=('thread {}'.format(str(i)), terms[i], queue))
             threads.append(thread)
     except Exception as e:
         print(str(e))
