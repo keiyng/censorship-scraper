@@ -41,7 +41,7 @@ def get_page(thread_name, search_term, queue):
            get_failure += 1
            time.sleep(5)
        else:
-           get_success, get_failure = expand_content(thread_name, driver, get_success, get_failure)
+          get_success, get_failure = expand_content(thread_name, driver, get_success, get_failure)
 
    if get_success is True:
        data = scrape(thread_name, driver)
@@ -55,10 +55,9 @@ def expand_content(thread_name, driver, get_success, get_failure):
 
    expand_success = False
    expand_failure = 0
-
    while expand_success is False and expand_failure < 2:
        try:
-           expand = driver.find_elements_by_css_selector(element_selector.EXPAND_SELECTOR)
+           expand = driver.find_elements_by_partial_link_text(element_selector.EXPAND_TEXT_SELECTOR)
            clicked = 0
            print('expanding the elements for {}...'.format(thread_name))
            for ele in expand:
@@ -95,29 +94,35 @@ def scrape(thread_name, driver):
    full_content_div = driver.find_elements_by_css_selector(element_selector.FULL_CONTENT_SELECTOR)
 
    content = []
-   url_and_date = []
+   url = []
    mid = []
 
    for ele in full_content_div:
        if not ele.find_elements_by_css_selector(element_selector.MEDIA_SELECTOR) and \
        not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR) and \
-       not ele.find_elements_by_css_selector(element_selector.LINK_SELECTOR) and \
-       not ele.find_elements_by_partial_link_text(element_selector.LINK_SELECTOR_2):
+       not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR_2) and \
+       not ele.find_elements_by_partial_link_text(element_selector.LINK_SELECTOR):
 
-           if ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text == '':
-               content.append(ele.find_element_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR).text)
-           else:
+           if ele.find_elements_by_css_selector(element_selector.CONTENT_SELECTOR) and \
+           ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text != '':
                content.append(ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text)
+               mid.append(ele.get_attribute("mid"))
+           if ele.find_elements_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR) and \
+           ele.find_element_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR).text != '':
+               content.append(ele.find_element_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR).text)
+               mid.append(ele.get_attribute("mid"))
+           if ele.find_elements_by_css_selector(element_selector.URL_SELECTOR):
+               url.append(ele.find_element_by_css_selector(element_selector.URL_SELECTOR))
 
-           url_and_date.append(ele.find_element_by_css_selector(element_selector.URL_AND_DATE_SELECTOR))
-           mid.append(ele.get_attribute("mid"))
 
    content = [EMOJI.sub(r'', text) for text in content]
 
-   url = [ele.get_attribute("href") for ele in url_and_date]
-   date = [ele.get_attribute("title") for ele in url_and_date]
 
-   if len(url) != len(date) or len(url) != len(content):
+   url = [ele.get_attribute("href") for ele in url]
+
+   if len(url) != len(content):
+       print('url len:' + str(len(url)))
+       print('content len:' + str(len(content)))
        driver.quit()
        sys.exit('scrapped content not aligning for {}'.format(thread_name))
 
@@ -125,11 +130,10 @@ def scrape(thread_name, driver):
    simplified_url = [u[0:u.find('?')] for u in url]
    uid = [u.split('/')[-2] for u in simplified_url]
    pid = [u.split('/')[-1] for u in simplified_url]
-   published_date = [d[0:d.find(' ')] for d in date]
 
    driver.quit()
 
-   data = {'content': content, 'url': simplified_url, 'uid': uid, 'pid': pid, 'mid': mid, 'published_date': published_date}
+   data = {'content': content, 'url': simplified_url, 'uid': uid, 'pid': pid, 'mid': mid}
 
    return data
 
@@ -152,8 +156,8 @@ def save_to_db(table, queue):
 
                try:
                    cur.execute('''INSERT INTO {} (content, url, uid, pid, mid, pubdate, tested, testdate, status)
-                                   VALUES (%s, %s, %s, %s, %s, %s, DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
-                                   (data["content"][i], data["url"][i], data["uid"][i], data["pid"][i], data["mid"][i], data["published_date"][i]))
+                                   VALUES (%s, %s, %s, %s, %s, CURDATE(), DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
+                                   (data["content"][i], data["url"][i], data["uid"][i], data["pid"][i], data["mid"][i]))
                    print('saved pid: {}'.format(data["pid"][i]))
 
                    saved += 1
