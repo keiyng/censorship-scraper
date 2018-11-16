@@ -9,7 +9,7 @@ A Web scrapper specially designed for scrapping content returned by specific sea
 PhantomJS is an executable. Download link: (http://phantomjs.org/download.html)
  ## The Scrapper
  * No sign-in to Weibo is required.
-* Scrape full content by expanding long posts that have been collpased by JavaScript.
+* Scrape full content by expanding long posts that have been clipped by JavaScript.
 * Parallel scraping with multi-threading.
 * Designed to scrape content that contains TEXT ONLY. To scrape content that includes external links and media, remove or modify the filters under `scrape()` in `web_scraping.py`.
 * Designed to use with a MySQL database.
@@ -22,8 +22,5 @@ PhantomJS is an executable. Download link: (http://phantomjs.org/download.html)
 5. Repeat step 1 to 4 at time interval as defined in a cron job (optional).
  #### To run:
 `python web_scraping.py [SEARCH TERM] [MYSQL TABLE NAME]`
- Multiple search terms are supported. Just make sure the last arguement is the table name.
+ Multiple search terms are supported. Just make sure the last argument is the table name.
 Beware of CAPTCHA if too many page requests are submitted at the same time.
- ## The Checker
- This program is built with the purpose of tracking censorship on Weibo.
- ## Cron
