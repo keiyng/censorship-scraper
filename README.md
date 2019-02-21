@@ -1,5 +1,5 @@
 # Weibo Scraper
-A Web scraper specially designed for Weibo's topic timeline (http://s.weibo.com/weibo/YOUR_SEARCH_TERM_HERE&Refer=STopic_box). The Weibo API does not provide an endpoint to obtain data published on the topic timeline. This scraper serves as a convenient too for anyone interested in downloading data on the topic timeline automatically without limitations. No Weibo login is required. 
+A Web scraper specially designed for Weibo's topic timeline (http://s.weibo.com/weibo/YOUR_SEARCH_TERM_HERE&Refer=STopic_box).<br />The Weibo API does not provide an endpoint to obtain data published on the topic timeline. This scraper serves as a convenient too for anyone interested in downloading data on the topic timeline automatically without limitations. No Weibo login is required. 
  #### Dependencies
 1. Selenium
 2. PyMySQL
@@ -20,5 +20,4 @@ PhantomJS is an executable. Download link: (http://phantomjs.org/download.html)
 4. Filter and save posts to database.
 5. Repeat step 1 to 4 at time interval defined in a cron job (optional).
  #### To run:
-`python web_scraping.py [SEARCH TERM] [MYSQL TABLE NAME]`
- Multiple search terms are supported. MySQL table name must be the last argument.
+`python web_scraping.py [SEARCH TERM] [MYSQL TABLE NAME]` <br />Multiple search terms are supported. MySQL table name must be the last argument.
