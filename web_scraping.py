@@ -98,10 +98,7 @@ def scrape(thread_name, driver):
    mid = []
 
    for ele in full_content_div:
-       if not ele.find_elements_by_css_selector(element_selector.MEDIA_SELECTOR) and \
-       not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR) and \
-       not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR_2) and \
-       not ele.find_elements_by_partial_link_text(element_selector.LINK_SELECTOR):
+       if (not ele.find_elements_by_css_selector(element_selector.MEDIA_SELECTOR)) and (not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR)) and (not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR_2)) and (not ele.find_elements_by_partial_link_text(element_selector.LINK_SELECTOR)) and (not ele.find_elements_by_css_selector(element_selector.VIDEO_SELECTOR)):
 
            if ele.find_elements_by_css_selector(element_selector.CONTENT_SELECTOR) and \
            ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text != '':
@@ -113,9 +110,6 @@ def scrape(thread_name, driver):
                mid.append(ele.get_attribute("mid"))
            if ele.find_elements_by_css_selector(element_selector.URL_SELECTOR):
                url.append(ele.find_element_by_css_selector(element_selector.URL_SELECTOR))
-
-
-   content = [EMOJI.sub(r'', text) for text in content]
 
 
    url = [ele.get_attribute("href") for ele in url]
@@ -131,9 +125,18 @@ def scrape(thread_name, driver):
    uid = [u.split('/')[-2] for u in simplified_url]
    pid = [u.split('/')[-1] for u in simplified_url]
 
+   cleaned_content = []
+
+   for c in content:
+       c = re.sub(r'\n+', ' ', c)
+       c = re.sub(EMOJI, ' ', c)
+       c= re.sub(',', '，', c)
+       cleaned_content.append(c)
+
+
    driver.quit()
 
-   data = {'content': content, 'url': simplified_url, 'uid': uid, 'pid': pid, 'mid': mid}
+   data = {'content': cleaned_content, 'url': simplified_url, 'uid': uid, 'pid': pid, 'mid': mid}
 
    return data
 
@@ -200,6 +203,7 @@ if __name__ == '__main__':
     except Exception as e:
         print(str(e))
         print('unable to start scraping threads.')
+        driver.quit()
 
     for thread in threads:
         thread.start()
@@ -211,3 +215,4 @@ if __name__ == '__main__':
     except Exception as e:
         print(str(e))
         print('unable to start database thread.')
+        driver.quit()
