@@ -9,10 +9,17 @@ import re
 import os
 import urllib
 from connections import mysql_database
-from constants import element_selector, local_path
+from constants import element_selectors as select, local_paths, filter_words
 from selenium import webdriver
 
-EMOJI = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
+
+def find_element(obj, find_by, selector):
+    if find_by == 'css':
+        return obj.find_elements_by_css_selector(selector)
+    elif find_by == 'css singular':
+        return obj.find_element_by_css_selector(selector)
+    elif find_by == 'partial link':
+        return obj.find_elements_by_partial_link_text(selector)
 
 def get_page(search_term, queue):
 
@@ -30,7 +37,7 @@ def get_page(search_term, queue):
 
        try:
            logging.info('\nstarting the driver')
-           driver = webdriver.PhantomJS(executable_path=local_path.phantomjs_path)
+           driver = webdriver.PhantomJS(executable_path=local_paths.phantomjs_path)
            ## necessary for elements to be located
            driver.set_window_size(1124, 850)
            logging.info('\ngetting the page')
@@ -40,12 +47,15 @@ def get_page(search_term, queue):
            logging.info('\nAn error occured trying to visit the page')
            get_success = False
            get_failure += 1
+           driver.quit()
            time.sleep(5)
        else:
           get_success, get_failure = expand_content(driver, get_success, get_failure)
 
    if get_success is True:
        data = scrape(driver)
+       print("*******************************")
+       print(list(queue.queue))
        queue.put(data)
        logging.info('\nscraping done')
 
@@ -56,10 +66,10 @@ def expand_content(driver, get_success, get_failure):
 
    expand_success = False
    expand_failure = 0
-   
-   while expand_success is False and expand_failure < 2:
+
+   while expand_success is False and expand_failure < 3:
        try:
-           expand = driver.find_elements_by_partial_link_text(element_selector.EXPAND_TEXT_SELECTOR)
+           expand = find_element(driver, 'partial link', select.EXPAND_TEXT)
            clicked = 0
            logging.info('\nexpanding elements')
            for ele in expand:
@@ -69,19 +79,20 @@ def expand_content(driver, get_success, get_failure):
                clicked += 1
 
        except Exception as e:
-           logging.info('\nAn error occured trying to expand element')
+           logging.info('\nAn error occured trying to expand element {}'.format(e))
            expand_success = False
            expand_failure += 1
            time.sleep(5)
 
        else:
-           collapse = driver.find_elements_by_partial_link_text(element_selector.COLLAPSE_TEXT_SELECTOR)
+           collapse = find_element(driver, 'partial link', select.COLLAPSE_TEXT)
 
+            ## if not aligning, restart the driver and revisit the page again
            if clicked != len(collapse):
-               driver.quit()
+               logging.info('\nno. of expand and collapse do not match. Start again...')
                get_success = False
                get_failure += 1
-               logging.info('\nno. of expand and collapse do not match. Start again...')
+               driver.quit()
                time.sleep(10)
                break
            else:
@@ -89,29 +100,38 @@ def expand_content(driver, get_success, get_failure):
 
    return get_success, get_failure
 
-
 def scrape(driver):
-
-   full_content_div = driver.find_elements_by_css_selector(element_selector.FULL_CONTENT_SELECTOR)
+   full_content_div = find_element(driver, 'css', select.FULL_CONTENT)
 
    content = []
    url = []
    mid = []
 
    for ele in full_content_div:
-       if (not ele.find_elements_by_css_selector(element_selector.MEDIA_SELECTOR)) and (not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR)) and (not ele.find_elements_by_css_selector(element_selector.REBLOG_SELECTOR_2)) and (not ele.find_elements_by_partial_link_text(element_selector.LINK_SELECTOR)) and (not ele.find_elements_by_css_selector(element_selector.VIDEO_SELECTOR)):
+       ## filter posts that contain media, retweet, and links
+       if (not find_element(ele, 'css', select.MEDIA)) and \
+       (not find_element(ele, 'css', select.REBLOG)) and \
+       (not find_element(ele, 'css', select.REBLOG_2)) and \
+       (not find_element(ele, 'partial link', select.LINK)) and \
+       (not find_element(ele, 'css', select.VIDEO)):
 
-           if ele.find_elements_by_css_selector(element_selector.CONTENT_SELECTOR) and \
-           ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text != '':
-               content.append(ele.find_element_by_css_selector(element_selector.CONTENT_SELECTOR).text)
+            ## filter short posts that are blank or contain certain keywords
+           if (find_element(ele, 'css', select.CONTENT)) and \
+           (find_element(ele, 'css singular', select.CONTENT).text != '') and \
+           (not(any(word in find_element(ele, 'css singular', select.CONTENT).text for word in filter_words.words))):
+               content.append(find_element(ele, 'css singular', select.CONTENT).text)
                mid.append(ele.get_attribute("mid"))
-           if ele.find_elements_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR) and \
-           ele.find_element_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR).text != '':
-               content.append(ele.find_element_by_css_selector(element_selector.EXPANDED_CONTENT_SELECTOR).text)
-               mid.append(ele.get_attribute("mid"))
-           if ele.find_elements_by_css_selector(element_selector.URL_SELECTOR):
-               url.append(ele.find_element_by_css_selector(element_selector.URL_SELECTOR))
 
+            ## filter long posts that are blank or contain certain keywords
+           if (find_element(ele, 'css', select.EXPANDED_CONTENT)) and \
+           (find_element(ele, 'css singular', select.EXPANDED_CONTENT).text != '') and \
+           (not(any(word in find_element(ele, 'css singular', select.EXPANDED_CONTENT).text for word in filter_words.words))):
+               content.append(find_element(ele, 'css singular', select.EXPANDED_CONTENT).text)
+               mid.append(ele.get_attribute("mid"))
+            
+            ## extract url
+           if find_element(ele, 'css', select.URL):
+               url.append(find_element(ele, 'css singular', select.URL))
 
    url = [ele.get_attribute("href") for ele in url]
 
@@ -127,13 +147,13 @@ def scrape(driver):
    pid = [u.split('/')[-1] for u in simplified_url]
 
    cleaned_content = []
+   EMOJI = re.compile('[\U00010000-\U0010ffff]', flags=re.UNICODE)
 
    for c in content:
        c = re.sub(r'\n+', ' ', c)
        c = re.sub(EMOJI, ' ', c)
        c= re.sub(',', '，', c)
        cleaned_content.append(c)
-
 
    driver.quit()
 
