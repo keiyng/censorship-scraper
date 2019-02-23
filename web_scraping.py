@@ -7,9 +7,8 @@ import time
 import sys
 import re
 import urllib
-from connections import mysql_database
-from constants import element_selectors as select, local_paths, filter_words
-from selenium import webdriver
+from connections import mysql_database, phantomjs
+from constants import element_selectors as select, filter_words
 
 
 def find_element(obj, find_by, selector):
@@ -35,10 +34,7 @@ def get_page(search_term, queue):
    while get_success is False and get_failure < 3:
 
        try:
-           logging.info('\nstarting the driver')
-           driver = webdriver.PhantomJS(executable_path=local_paths.phantomjs_path)
-           ## necessary for elements to be located
-           driver.set_window_size(1124, 850)
+           driver = phantomjs.start()
            logging.info('\ngetting the page')
            driver.get('http://s.weibo.com/weibo/{}&Refer=STopic_box'.format(quoted_search_term))
            get_success = True
