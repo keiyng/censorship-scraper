@@ -21,7 +21,7 @@ PhantomJS is an executable. Download link: (http://phantomjs.org/download.html)
 5. Repeat step 1 to 4 at time interval defined in a cron job (optional).
  #### To run:
 `python web_scraping.py [SEARCH TERM] [MYSQL TABLE NAME]` <br />Multiple search terms are supported. MySQL table name must be the last argument.
- #### Checking for censorship
+ #### Check for censorship
  This project was created for the purpose of uncovering censorship on Weibo. <br /> `check.py` implements logic to decipher censorship based on the UI and the error code returned from the statuses/show API endpoint. A registered Weibo developer account is needed to obtain the access token. 
 ##### Dependencies
 Same as the scraper, plus the requests library (http://docs.python-requests.org/en/master/)

@@ -178,7 +178,7 @@ def save_to_db(table, queue):
                    saved += 1
                    cur.connection.commit()
                except Exception as e:
-                   logging.info('\nunable to insert pid {} ... into table. {}'.format(data["pid"][i], e))
+                   logging.info('\nunable to insert pid {} into table. {}'.format(data["pid"][i], e))
                    continue
            else:
                skipped += 1

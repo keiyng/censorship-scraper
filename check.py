@@ -5,21 +5,25 @@ import weibo_api
 import requests as r
 from connections import mysql_database, phantomjs
 
+def selectData(cur, interval, table, test):
+    cur.execute('''SELECT url, pid, mid from {}
+        WHERE pubdate < CURDATE() - INTERVAL {} DAY
+        AND {} = "not yet" '''.format(table, interval, test))
+
+def updateData(cur, table, test, date, status, availability, mid, error=None):
+    cur.execute('''UPDATE {}
+    SET {} = "yes", {} = CURDATE(), {} = %s, error = %s
+    WHERE mid = %s'''.format(table, test, date, status), \
+    (availability, error, mid))
+
 def select(num, table):
     conn, cur = mysql_database.connect()
     ## 1st test after 2 days
     if num == '1':
-        cur.execute(
-        '''SELECT url, pid, mid from {}
-        WHERE pubdate < CURDATE() - INTERVAL 2 DAY
-        AND tested = "not yet" '''.format(table))
+        selectData(cur, '2', table, 'tested')
     ## 2nd test after 14 days
     elif num == '2':
-        cur.execute(
-        '''SELECT url, pid, mid from {}
-        WHERE retested = "not yet" 
-        AND pubdate < CURDATE() - INTERVAL 14 DAY
-        '''.format(table))
+        selectData(cur, '14', table, 'retested')
     else:
         sys.exit('unable to select appropriate data to test')
 
@@ -61,16 +65,14 @@ def update_db(driver, url, pid, mid, current_url, conn, cur, num, table):
         if pid not in current_url:
             logging.info('\npid {} not found in current url: {}'.format(pid, current_url))
             logging.info('\noriginal url is: {}'.format(url))
-            if num == '1':             
-                cur.execute('''UPDATE {}
-                SET tested = "yes", testdate = CURDATE(), status = "not available"
-                WHERE mid = %s'''.format(table), \
-                (mid))
+            if num == '1':
+                updateData(cur, table, 'tested', 'testdate', 'status', 'not available', mid)             
             elif num == '2':
                 request = r.get('{}id={}&access_token={}'.format(weibo_api.BASE_STATUS_REQUEST_URL, mid, weibo_api.ACCESS_TOKEN_1)) 
                 response = request.json()
                 error = response['error']
                 print(error)
+
                 if 'limit' in error:
                     sys.exit()
                 if 'Permission' in error:
@@ -80,32 +82,17 @@ def update_db(driver, url, pid, mid, current_url, conn, cur, num, table):
                     user_url = driver.current_url
                     print(user_url)
                     if user_url.endswith('.com/us'):
-                        print("********* protected user **************")
-                        cur.execute('''UPDATE {}
-                        SET retested = "yes", retestdate = CURDATE(), status_2 = "protected" WHERE mid = %s'''.format(table), \
-                        (mid))
+                        updateData(cur, table, 'retested', 'retestdate', 'status_2', 'protected', mid)
                     else:
-                        print("system deleted")
-                        cur.execute('''UPDATE {}
-                        SET retested = "yes", retestdate = CURDATE(), status_2 = "not available", error = %s WHERE mid = %s'''.format(table), \
-                        (error, mid))
+                        updateData(cur, table, 'retested', 'retestdate', 'status_2', 'not available', mid, error)
                 else:
-                    cur.execute('''UPDATE {}
-                    SET retested = "yes", retestdate = CURDATE(), status_2 = "not available", error = %s WHERE mid = %s'''.format(table), \
-                    (error, mid))
+                    updateData(cur, table, 'retested', 'retestdate', 'status_2', 'not available', mid, error)
         ## if available
         else:
             if num == '1':
-                cur.execute('''UPDATE {}
-                SET tested = "yes", testdate = CURDATE(), status = "available"
-                WHERE mid = %s'''.format(table), \
-                (mid))
+                updateData(cur, table, 'tested', 'testdate', 'status', 'available', mid)
             elif num == '2':
-                print('{} is accessible;\ncurrent url is {}'.format(pid, current_url))
-                cur.execute('''UPDATE {}
-                SET retested = "yes", retestdate = CURDATE(), status_2 = "available"
-                WHERE mid = %s'''.format(table), \
-                (mid))
+                updateData(cur, table, 'retested', 'retestdate', 'status_2', 'available', mid)
 
     except Exception as e:
         print('unable to update {}. {}'.format(pid, e))
@@ -121,7 +108,7 @@ if __name__ == '__main__':
     table = sys.argv[2]
 
     if num != '1' and num != '2':
-        sys.exit('invalid argument for check')
+        sys.exit('invalid argument for check number')
     
     data = select(num, table)
     get_page()
