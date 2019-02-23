@@ -6,7 +6,6 @@ from queue import Queue
 import time
 import sys
 import re
-import os
 import urllib
 from connections import mysql_database
 from constants import element_selectors as select, local_paths, filter_words
@@ -44,7 +43,7 @@ def get_page(search_term, queue):
            driver.get('http://s.weibo.com/weibo/{}&Refer=STopic_box'.format(quoted_search_term))
            get_success = True
        except Exception as e:
-           logging.info('\nAn error occured trying to visit the page')
+           logging.info('\nAn error occured trying to visit the page {}'.format(e))
            get_success = False
            get_failure += 1
            driver.quit()
@@ -54,8 +53,6 @@ def get_page(search_term, queue):
 
    if get_success is True:
        data = scrape(driver)
-       print("*******************************")
-       print(list(queue.queue))
        queue.put(data)
        logging.info('\nscraping done')
 
@@ -168,26 +165,24 @@ def save_to_db(table, queue):
 
    conn, cur = mysql_database.connect()
 
-   cur.execute('SELECT url from {}'.format(table))
-   ## turn tuple of tuples into list of strings
-   exisiting_urls = [''.join(ele) for urls in list(cur.fetchall()) for ele in urls]
-
    while not queue.empty():
+       cur.execute('SELECT url from {}'.format(table))
+        ## turn tuple of tuples into list of strings
+       exisiting_urls = [''.join(ele) for urls in list(cur.fetchall()) for ele in urls]      
        data = queue.get()
 
        for i in range(len(data["content"])):
            if data["url"][i] not in exisiting_urls:
-
                try:
                    cur.execute('''INSERT INTO {} (content, url, uid, pid, mid, pubdate, tested, testdate, status)
                                    VALUES (%s, %s, %s, %s, %s, CURDATE(), DEFAULT, DEFAULT, DEFAULT)'''.format(table), \
                                    (data["content"][i], data["url"][i], data["uid"][i], data["pid"][i], data["mid"][i]))
-                   logging.info('\nsaved pid: {}'.format(data["pid"][i]))
+                   logging.info('saved pid: {}'.format(data["pid"][i]))
 
                    saved += 1
                    cur.connection.commit()
                except Exception as e:
-                   logging.info('\nunable to insert pid {} ... into table.'.format(data["pid"][i]))
+                   logging.info('\nunable to insert pid {} ... into table. {}'.format(data["pid"][i], e))
                    continue
            else:
                skipped += 1
@@ -221,7 +216,6 @@ if __name__ == '__main__':
         threads = [threading.Thread(target=get_page, args=(terms[i], queue)) for i in range(len(terms))]
     except Exception as e:
         logging.info('\nunable to start scraping threads.')
-        driver.quit()
 
     for thread in threads:
         thread.start()
@@ -234,4 +228,3 @@ if __name__ == '__main__':
         threading.Thread(target=save_to_db, args=(table, queue)).start()
     except Exception as e:
         logging.info('\nunable to start database thread.')
-        driver.quit()
