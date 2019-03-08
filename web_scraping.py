@@ -114,6 +114,8 @@ def scrape(driver):
            (not(any(word in find_element(ele, 'css singular', select.CONTENT).text for word in filter_words.words))):
                content.append(find_element(ele, 'css singular', select.CONTENT).text)
                mid.append(ele.get_attribute("mid"))
+               if find_element(ele, 'css', select.URL):
+                    url.append(find_element(ele, 'css singular', select.URL))
 
             ## filter long posts that are blank or contain certain keywords
            if (find_element(ele, 'css', select.EXPANDED_CONTENT)) and \
@@ -121,10 +123,8 @@ def scrape(driver):
            (not(any(word in find_element(ele, 'css singular', select.EXPANDED_CONTENT).text for word in filter_words.words))):
                content.append(find_element(ele, 'css singular', select.EXPANDED_CONTENT).text)
                mid.append(ele.get_attribute("mid"))
-            
-            ## extract url
-           if find_element(ele, 'css', select.URL):
-               url.append(find_element(ele, 'css singular', select.URL))
+               if find_element(ele, 'css', select.URL):
+                    url.append(find_element(ele, 'css singular', select.URL))
 
    url = [ele.get_attribute("href") for ele in url]
 
