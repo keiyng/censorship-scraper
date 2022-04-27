@@ -1,4 +1,3 @@
-# Weibo Scraper
 A Web scraper specially designed for Weibo's topic timeline (http://s.weibo.com/weibo/YOUR_SEARCH_TERM_HERE&Refer=STopic_box).<br />The Weibo API does not provide an endpoint to obtain data published on the topic timeline. This scraper serves as a convenient too for anyone interested in downloading data on the topic timeline automatically without limitations. No Weibo login is required. 
  ## The Scraper
 * Able to scrape full content by expanding posts clipped by JavaScript.
